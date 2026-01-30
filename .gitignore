@@ -1,0 +1,11 @@
+# OS files
+Thumbs.db
+Desktop.ini
+
+# API Keys and Secrets
+.env
+secret.json
+
+# IDE files
+.vscode/
+.idea/

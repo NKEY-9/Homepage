@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>식자재를 부탁해 - 냉장고 관리 (통합 알람 시스템)</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f7f1e3;
+            --fridge-color: #dcdde1;
+            --door-color: #ffffff;
+            --accent-color: #ff4757;
+            --warning-color: #ffa502;
+            --expired-color: #2f3542;
+            --freezer-color: #e3f2fd;
+            --ice-gradient: linear-gradient(135deg, #e3f2fd 25%, #ffffff 50%, #e3f2fd 75%);
+            --wood-color: #d38e5d;
+            --ai-color: #8e44ad;
+            --close-btn-color: #636e72;
+            --counter-color: #bdc3c7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #333;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), #67b26f);
+            color: white;
+            padding: 0.6rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .header-content h1 {
+            font-size: 1.4rem;
+            letter-spacing: -1px;
+        }
+
+        .creator {
+            position: absolute;
+            bottom: 5px;
+            right: 15px;
+            font-size: 0.55rem;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+
+        .today-info {
+            font-size: 0.7rem;
+            margin-top: 2px;
+            background: rgba(0, 0, 0, 0.15);
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* [신규] 상단 통합 알람 배너 스타일 */
+        .global-alert-banner {
+            width: 100%;
+            padding: 8px 15px;
+            text-align: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: white;
+            display: none;
+            /* 기본 숨김 */
+            cursor: pointer;
+            z-index: 90;
+            animation: slideDown 0.5s ease-out;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .alert-urgent {
+            background-color: var(--accent-color);
+            animation: pulse-red 2s infinite;
+        }
+
+        .alert-warning {
+            background-color: var(--warning-color);
+        }
+
+        @keyframes pulse-red {
+            0% {
+                background-color: #ff4757;
+            }
+
+            50% {
+                background-color: #ff6b81;
+            }
+
+            100% {
+                background-color: #ff4757;
+            }
+        }
+
+        main.kitchen-scene {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f1f2f6;
+            overflow: hidden;
+            padding: 10px;
+        }
+
+        .wall-tiles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 75%;
+            background-color: #ecf0f1;
+            background-image:
+                linear-gradient(90deg, rgba(189, 195, 199, 0.3) 1px, transparent 1px),
+                linear-gradient(rgba(189, 195, 199, 0.3) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 1;
+        }
+
+        .floor {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25%;
+            background: linear-gradient(to bottom, #d38e5d 0%, #b36e3d 100%);
+            background-image:
+                repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(0, 0, 0, 0.1) 101px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+            border-top: 4px solid #8e4d2d;
+            z-index: 2;
+            box-shadow: inset 0 20px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .kitchen-shelves {
+            position: absolute;
+            top: 15%;
+            right: 5%;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 80px;
+            z-index: 3;
+        }
+
+        .shelf-plank {
+            height: 12px;
+            background: var(--wood-color);
+            border-radius: 4px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .dishes-on-shelf {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            font-size: 24px;
+            padding: 0 10px;
+        }
+
+        .countertop {
+            position: absolute;
+            bottom: 25%;
+            left: 0;
+            width: 280px;
+            height: 120px;
+            background: linear-gradient(to bottom, #bdc3c7, #95a5a6);
+            border-top: 5px solid #ecf0f1;
+            border-radius: 0 10px 0 0;
+            z-index: 3;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .sink-basin {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            width: 180px;
+            height: 70px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            box-shadow: inset 0 5px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .faucet {
+            position: absolute;
+            bottom: 37%;
+            left: 100px;
+            width: 12px;
+            height: 60px;
+            background: linear-gradient(to right, #7f8c8d, #bdc3c7, #7f8c8d);
+            border-radius: 6px 6px 0 0;
+            z-index: 4;
+        }
+
+        .faucet::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -10px;
+            width: 30px;
+            height: 12px;
+            background: inherit;
+            border-radius: 10px;
+        }
+
+        .refrigerator-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+            transform: scale(var(--fridge-scale, 0.9));
+            transition: transform 0.3s ease;
+        }
+
+        .refrigerator-body {
+            position: relative;
+            width: 420px;
+            height: 680px;
+            background-color: var(--fridge-color);
+            border-radius: 20px 20px 10px 10px;
+            border: 6px solid #bdc3c7;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.4);
+            perspective: 2000px;
+        }
+
+        .interior {
+            width: 100%;
+            height: 100%;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: #ffffff;
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .shelf,
+        .door-rack {
+            flex: 1;
+            background: #fff;
+            border: 1px solid #f1f2f6;
+            border-radius: 8px;
+            padding: 8px;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.03);
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+
+        .shelf span,
+        .door-rack span {
+            font-size: 10px;
+            color: #2c3e50;
+            position: absolute;
+            top: 4px;
+            left: 8px;
+            font-weight: 800;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1px 5px;
+            border-radius: 3px;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+
+        .ice-effect {
+            background: var(--ice-gradient) !important;
+            background-size: 200% 200% !important;
+            animation: iceFlow 10s ease infinite !important;
+            border-color: #bbdefb !important;
+        }
+
+        .item-slot {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            gap: 4px;
+            height: 100%;
+            padding-top: 22px;
+            overflow-y: auto;
+        }
+
+        .food-item {
+            background: white;
+            border-radius: 6px;
+            padding: 4px 2px;
+            font-size: 10px;
+            border: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            position: relative;
+            z-index: 15;
+            width: calc(33.33% - 3px);
+            min-height: 85px;
+            transition: transform 0.1s;
+            cursor: default;
+        }
+
+        .food-item:hover {
+            transform: scale(1.05);
+            z-index: 20;
+            border-color: var(--primary-color);
+        }
+
+        .food-item-name {
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.75rem;
+            color: #2d3436;
+            width: 90%;
+            text-align: center;
+        }
+
+        .alarm-tag {
+            font-size: 7px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-weight: 900;
+            color: white;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2px;
+        }
+
+        .emoji-box {
+            width: 28px;
+            height: 28px;
+            background: #f1f2f6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f8f9fa;
+        }
+
+        .d-day-label {
+            font-size: 8px;
+            color: #636e72;
+            font-weight: 800;
+            background: rgba(241, 242, 246, 0.7);
+            padding: 1px 4px;
+            border-radius: 2px;
+            margin-top: 2px;
+        }
+
+        @keyframes sparkle-orange {
+            0% {
+                border-color: #ffa502;
+                box-shadow: 0 0 3px rgba(255, 165, 2, 0.3);
+            }
+
+            50% {
+                border-color: #ff7f50;
+                box-shadow: 0 0 8px rgba(255, 165, 2, 0.6);
+            }
+
+            100% {
+                border-color: #ffa502;
+                box-shadow: 0 0 3px rgba(255, 165, 2, 0.3);
+            }
+        }
+
+        @keyframes sparkle-red {
+            0% {
+                border-color: #ff4757;
+                box-shadow: 0 0 3px rgba(255, 71, 87, 0.3);
+            }
+
+            50% {
+                border-color: #ff6b81;
+                box-shadow: 0 0 12px rgba(255, 71, 87, 0.7);
+            }
+
+            100% {
+                border-color: #ff4757;
+                box-shadow: 0 0 3px rgba(255, 71, 87, 0.3);
+            }
+        }
+
+        .food-item.expiring {
+            animation: sparkle-orange 1.5s infinite;
+            background-color: #fffdf9;
+            border-width: 2px;
+        }
+
+        .food-item.expired {
+            animation: sparkle-red 1s infinite;
+            background-color: #fffafb;
+            border-width: 2px;
+        }
+
+        .refrigerator-door {
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            width: calc(100% + 12px);
+            height: calc(100% + 12px);
+            z-index: 100;
+            transform-origin: left;
+            transition: transform 1.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .refrigerator-door.open {
+            transform: rotateY(-115deg);
+        }
+
+        .door-exterior {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: var(--door-color);
+            border: 6px solid #bdc3c7;
+            border-radius: 20px 20px 10px 10px;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 20px;
+            cursor: pointer;
+            padding-left: 50px;
+        }
+
+        .handle {
+            position: absolute;
+            right: 25px;
+            top: 35%;
+            width: 18px;
+            height: 180px;
+            background: linear-gradient(to right, #bdc3c7, #95a5a6);
+            border-radius: 9px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .ai-btn {
+            background: linear-gradient(135deg, var(--ai-color), #9b59b6);
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(142, 68, 173, 0.4);
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            z-index: 110;
+        }
+
+        .close-fridge-btn {
+            position: absolute;
+            bottom: -65px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--close-btn-color);
+            color: white;
+            border: none;
+            padding: 14px 45px;
+            border-radius: 40px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s;
+            display: none;
+            z-index: 150;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+        }
+
+        .close-fridge-btn:hover {
+            background-color: #2d3436;
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        .refrigerator-door.open~.close-fridge-btn {
+            display: block;
+        }
+
+        .door-interior {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #f1f2f6;
+            border: 6px solid #bdc3c7;
+            border-radius: 20px 20px 10px 10px;
+            transform: rotateY(180deg);
+            backface-visibility: hidden;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .add-item-btn {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            width: 75px;
+            height: 75px;
+            background: linear-gradient(135deg, var(--primary-color), #3498db);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 45px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            border: 5px solid white;
+            z-index: 2000;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .add-item-btn:hover {
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.hidden {
+            display: none;
+            opacity: 0;
+        }
+
+        .modal-window {
+            background: white;
+            padding: 2rem;
+            border-radius: 32px;
+            width: 95%;
+            max-width: 580px;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+            position: relative;
+            animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes modalPop {
+            from {
+                transform: scale(0.7);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .alarm-info-banner {
+            background: linear-gradient(135deg, #fff5f5, #fff0f0);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 2px solid #feb2b2;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .banner-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .banner-icon {
+            font-size: 40px;
+            background: white;
+            width: 65px;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 18px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .banner-text {
+            flex: 1;
+        }
+
+        .banner-text h3 {
+            font-size: 1.2rem;
+            color: #c53030;
+            margin-bottom: 4px;
+            font-weight: 900;
+        }
+
+        .banner-text p {
+            font-size: 0.95rem;
+            color: #2d3748;
+            font-weight: 700;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            font-size: 1.05rem;
+        }
+
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        .loader {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid var(--ai-color);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #aiResultSection {
+            max-height: 45vh;
+            overflow-y: auto;
+            padding-right: 15px;
+        }
+
+        footer {
+            background: #2c3e50;
+            color: #ecf0f1;
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.85rem;
+            font-weight: 400;
+            flex-shrink: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="header-content">
+            <h1>식자재를 부탁해</h1>
+            <div class="today-info" id="todayDisplay">오늘: 202X-XX-XX</div>
+        </div>
+        <p class="creator">제작자: 구경민</p>
+    </header>
+
+    <!-- [신규] 글로벌 알람 배너 -->
+    <div id="globalAlarmBanner" class="global-alert-banner">
+        현재 소비기한 위험 식자재가 있습니다! (클릭하여 확인)
+    </div>
+
+    <main class="kitchen-scene">
+        <div class="wall-tiles"></div>
+        <div class="floor"></div>
+
+        <div class="kitchen-shelves">
+            <div class="shelf-plank">
+                <div class="dishes-on-shelf">🍽️ 🍽️ 🥣</div>
+            </div>
+            <div class="shelf-plank">
+                <div class="dishes-on-shelf">☕ 🥛 ☕</div>
+            </div>
+        </div>
+
+        <div class="countertop">
+            <div class="sink-basin"></div>
+        </div>
+        <div class="faucet"></div>
+
+        <div class="refrigerator-container" id="fridgeContainer">
+            <div class="refrigerator-body">
+                <div class="interior">
+                    <div class="shelf ice-effect" data-location="냉동고"><span>냉동고</span>
+                        <div class="item-slot"></div>
+                    </div>
+                    <div class="shelf" data-location="냉장고 2단"><span>냉장고 2단 (상)</span>
+                        <div class="item-slot"></div>
+                    </div>
+                    <div class="shelf" data-location="냉장고 1단"><span>냉장고 1단 (하)</span>
+                        <div class="item-slot"></div>
+                    </div>
+                </div>
+
+                <div class="refrigerator-door" id="fridgeDoor">
+                    <div class="door-exterior">
+                        <div class="handle"></div>
+                        <div
+                            style="font-weight: 950; color: #ced4da; font-size: 1.6rem; letter-spacing: 3px; font-style: italic;">
+                            SMART FRESH</div>
+                        <button id="aiRecommendBtn" class="ai-btn">✨ AI 셰프 추천</button>
+                    </div>
+                    <div class="door-interior">
+                        <div class="door-rack ice-effect" data-location="냉장고 문 3단"><span>냉장고 문 3단 (상)</span>
+                            <div class="item-slot"></div>
+                        </div>
+                        <div class="door-rack" data-location="냉장고 문 2단"><span>냉장고 문 2단 (중)</span>
+                            <div class="item-slot"></div>
+                        </div>
+                        <div class="door-rack" data-location="냉장고 문 1단"><span>냉장고 문 1단 (하)</span>
+                            <div class="item-slot"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="closeDoorBtn" class="close-fridge-btn">🚪 냉장고 문 닫기</button>
+            </div>
+        </div>
+
+        <button id="mainAddItemBtn" class="add-item-btn">+</button>
+    </main>
+
+    <!-- AI/알람 모달 -->
+    <div id="aiOverlay" class="overlay hidden">
+        <div class="modal-window">
+            <h2
+                style="color: var(--ai-color); margin-bottom: 20px; font-size: 1.6rem; display:flex; align-items:center; gap:12px; font-weight: 900;">
+                🍱 <span id="modalHeaderTitle">AI 셰프 보고서</span>
+            </h2>
+
+            <div id="alarmInfoBanner" class="alarm-info-banner hidden">
+                <div class="banner-status">
+                    <div class="banner-icon" id="bannerEmoji">🚨</div>
+                    <div class="banner-text">
+                        <h3 id="bannerItemName">식재료 명</h3>
+                        <p id="bannerItemStatus">소비기한 상태 정보</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="aiLoading" class="loader-container hidden">
+                <div class="loader"></div>
+                <p style="color: var(--ai-color); font-weight: 800; text-align: center;">신선도를 분석하여 레시피를 만드는 중...</p>
+            </div>
+
+            <div id="aiResultSection">
+                <div id="aiResult" style="font-size: 1rem; line-height: 1.8; color: #2d3436; white-space: pre-wrap;">
+                </div>
+            </div>
+
+            <button class="submit-btn" style="background: var(--ai-color); margin-top: 25px;"
+                onclick="closeAIModal()">알겠습니다!</button>
+        </div>
+    </div>
+
+    <!-- 입력 모달 -->
+    <div id="inputOverlay" class="overlay hidden">
+        <div class="modal-window">
+            <h2 id="modalTitle"
+                style="font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--primary-color); font-weight: 900;">🥗 새로운
+                식자재 등록</h2>
+            <form id="foodForm">
+                <div style="margin-bottom: 1.2rem;">
+                    <label style="display:block; font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">식자재
+                        명</label>
+                    <input type="text" id="foodType" placeholder="예: 우유, 계란, 김치" required
+                        style="width:100%; padding:1rem; border:2px solid #edf2f7; border-radius:16px; font-size: 1.1rem; outline: none;">
+                </div>
+                <div style="margin-bottom: 1.2rem;">
+                    <label style="display:block; font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">소비기한</label>
+                    <input type="date" id="expiryDate" required
+                        style="width:100%; padding:1rem; border:2px solid #edf2f7; border-radius:16px; font-size: 1.1rem; outline: none;">
+                </div>
+                <div style="margin-bottom: 2rem;">
+                    <label style="display:block; font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">보관
+                        위치</label>
+                    <select id="location" required
+                        style="width:100%; padding:1rem; border:2px solid #edf2f7; border-radius:16px; font-size: 1.1rem; background: white;">
+                        <option value="냉동고">냉동고</option>
+                        <option value="냉장고 2단">냉장고 2단 (상)</option>
+                        <option value="냉장고 1단">냉장고 1단 (하)</option>
+                        <option value="냉장고 문 3단">냉장고 문 3단 (상)</option>
+                        <option value="냉장고 문 2단">냉장고 문 2단 (중)</option>
+                        <option value="냉장고 문 1단">냉장고 문 1단 (하)</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:15px;">
+                    <button type="submit" class="submit-btn">등록하기</button>
+                    <button type="button" id="closeForm" class="submit-btn"
+                        style="background:#cbd5e0; color: #4a5568;">취소</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <p>소비기한이 지나 버려지는 식자재 사람들의 땀이 만들어낸 소중한 식량입니다</p>
+    </footer>
+
+    <script>
+        const apiKey = "";
+        const GEMINI_MODEL = "gemini-2.5-flash-preview-09-2025";
+
+        let foodItems = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        document.getElementById('todayDisplay').innerText = `오늘: ${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        const fridgeDoor = document.getElementById('fridgeDoor');
+        const inputOverlay = document.getElementById('inputOverlay');
+        const foodForm = document.getElementById('foodForm');
+        const locationSelect = document.getElementById('location');
+        const aiOverlay = document.getElementById('aiOverlay');
+        const aiResult = document.getElementById('aiResult');
+        const aiLoading = document.getElementById('aiLoading');
+        const aiResultSection = document.getElementById('aiResultSection');
+        const alarmInfoBanner = document.getElementById('alarmInfoBanner');
+        const globalAlarmBanner = document.getElementById('globalAlarmBanner');
+
+        function updateScale() {
+            const mainHeight = document.querySelector('main').offsetHeight;
+            const fridgeHeight = 740;
+            const scale = Math.min(1, (mainHeight - 40) / fridgeHeight);
+            document.documentElement.style.setProperty('--fridge-scale', scale);
+        }
+
+        window.addEventListener('resize', updateScale);
+        window.addEventListener('load', () => {
+            updateScale();
+            setTimeout(() => { fridgeDoor.classList.add('open'); }, 700);
+        });
+
+        document.addEventListener('click', (e) => {
+            const doorExterior = e.target.closest('.door-exterior');
+            const isCloseBtn = e.target.id === 'closeDoorBtn';
+            if (isCloseBtn) { fridgeDoor.classList.remove('open'); return; }
+            if (doorExterior && !e.target.closest('#aiRecommendBtn')) { fridgeDoor.classList.toggle('open'); return; }
+        });
+
+        globalAlarmBanner.addEventListener('click', () => {
+            getAIRecommendation(); // 요약된 냉파 레시피 호출
+        });
+
+        document.getElementById('mainAddItemBtn').addEventListener('click', () => {
+            inputOverlay.classList.remove('hidden');
+            foodForm.reset();
+            document.getElementById('foodType').focus();
+        });
+
+        document.getElementById('aiRecommendBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            getAIRecommendation();
+        });
+
+        document.getElementById('closeForm').addEventListener('click', () => { inputOverlay.classList.add('hidden'); });
+
+        function closeAIModal() { aiOverlay.classList.add('hidden'); }
+
+        foodForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newItem = {
+                id: Date.now(),
+                name: document.getElementById('foodType').value,
+                expiry: document.getElementById('expiryDate').value,
+                location: locationSelect.value
+            };
+            foodItems.push(newItem);
+            renderItems();
+            foodForm.reset();
+            inputOverlay.classList.add('hidden');
+        });
+
+        async function getAIRecommendation(targetItemObj = null) {
+            if (foodItems.length === 0) {
+                alert("냉장고에 재료가 없습니다!");
+                return;
+            }
+
+            aiOverlay.classList.remove('hidden');
+            aiLoading.classList.remove('hidden');
+            aiResultSection.classList.add('hidden');
+            alarmInfoBanner.classList.add('hidden');
+            aiResult.innerText = "";
+            document.getElementById('modalHeaderTitle').innerText = targetItemObj ? "알람 상세 보고서" : "AI 셰프 오늘의 추천";
+
+            const validItems = foodItems.filter(i => {
+                const exp = new Date(i.expiry);
+                exp.setHours(0, 0, 0, 0);
+                return (exp - today) >= 0;
+            });
+
+            const expiringItems = validItems.filter(i => {
+                const exp = new Date(i.expiry);
+                exp.setHours(0, 0, 0, 0);
+                const diff = Math.round((exp - today) / (1000 * 60 * 60 * 24));
+                return diff <= 2;
+            });
+
+            const expiringNames = expiringItems.map(i => i.name);
+            const allValidNames = validItems.map(i => i.name).join(', ');
+
+            let prompt = "";
+
+            if (targetItemObj && targetItemObj.diff < 0) {
+                alarmInfoBanner.classList.remove('hidden');
+                document.getElementById('bannerEmoji').innerText = targetItemObj.emoji;
+                document.getElementById('bannerItemName').innerText = targetItemObj.name;
+                document.getElementById('bannerItemStatus').innerText = `${targetItemObj.statusText} (폐기 권장)`;
+                document.getElementById('bannerItemStatus').style.color = 'var(--accent-color)';
+                prompt = `[${targetItemObj.name}]이 소비기한이 지났습니다. 폐기를 권장하고 대신 다른 신선한 재료 [${allValidNames}]를 활용한 안전한 요리를 추천해줘.`;
+            } else if (targetItemObj) {
+                alarmInfoBanner.classList.remove('hidden');
+                document.getElementById('bannerEmoji').innerText = targetItemObj.emoji;
+                document.getElementById('bannerItemName').innerText = targetItemObj.name;
+                document.getElementById('bannerItemStatus').innerText = `${targetItemObj.statusText} (${targetItemObj.expiryDate}까지)`;
+                document.getElementById('bannerItemStatus').style.color = '#d69e2e';
+                prompt = `[${targetItemObj.name}]의 소비기한이 임박했습니다. 다른 신선한 재료 [${allValidNames}]와 함께 소진할 수 있는 자취 요리 1개를 알려줘.`;
+            } else {
+                prompt = `신선 재료: [${allValidNames}]. 임박 재료: [${expiringNames.join(', ')}]. 소비기한 지난 재료 제외하고, 임박한 재료 소진을 위한 냉파 레시피 1개 추천해줘.`;
+            }
+
+            const callGemini = async (retries = 0) => {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }],
+                            systemInstruction: { parts: [{ text: "당신은 소비기한 관리에 엄격한 요리 전문가입니다. 답변은 한국어로 신뢰감 있게 작성하세요." }] }
+                        })
+                    });
+                    if (!response.ok) throw new Error("API Error");
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) {
+                    if (retries < 5) {
+                        const delay = Math.pow(2, retries) * 1000;
+                        await new Promise(r => setTimeout(r, delay));
+                        return callGemini(retries + 1);
+                    }
+                    throw e;
+                }
+            };
+
+            try {
+                const text = await callGemini();
+                aiLoading.classList.add('hidden');
+                aiResultSection.classList.remove('hidden');
+                aiResult.innerText = text || "추천 정보를 가져올 수 없습니다.";
+            } catch (e) {
+                aiLoading.classList.add('hidden');
+                aiResultSection.classList.remove('hidden');
+                aiResult.innerText = "서버 연결이 불안정합니다. 잠시 후 다시 시도해 주세요.";
+            }
+        }
+
+        function getEmoji(name) {
+            const n = name.replace(/\s+/g, '').toLowerCase();
+            const map = {
+                '우유': '🥛', '물': '💧', '음료': '🥤', '커피': '☕', '주스': '🥤',
+                '사과': '🍎', '바나나': '🍌', '포도': '🍇', '딸기': '🍓', '과일': '🍉',
+                '고기': '🥩', '삼겹살': '🥓', '돼지': '🥓', '닭': '🍗', '소고기': '🥩',
+                '생선': '🐟', '연어': '🍣', '만두': '🥟', '떡': '🍡', '면': '🍜', '라면': '🍜',
+                '계란': '🥚', '달걀': '🥚', '치즈': '🧀', '요거트': '🍦', '버터': '🧈',
+                '김치': '🥗', '상추': '🥬', '오이': '🥒', '당근': '🥕', '양파': '🧅', '대파': '🌱',
+                '빵': '🍞', '햄': '🍖', '소시지': '🌭'
+            };
+            for (let key in map) if (n.includes(key)) return map[key];
+            return '🍱';
+        }
+
+        function renderItems() {
+            document.querySelectorAll('.item-slot').forEach(s => s.innerHTML = '');
+
+            let expiredCount = 0;
+            let expiringCount = 0;
+
+            foodItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'food-item';
+                const expDate = new Date(item.expiry);
+                expDate.setHours(0, 0, 0, 0);
+                const diff = Math.round((expDate - today) / (1000 * 60 * 60 * 24));
+
+                let hasAlarm = false;
+                let alarmText = "";
+                let statusColor = "";
+                let statusText = "";
+
+                if (diff < 0) {
+                    div.classList.add('expired');
+                    hasAlarm = true;
+                    statusText = `소비기한 ${Math.abs(diff)}일 지남`;
+                    alarmText = `🚨 지남`;
+                    statusColor = "var(--expired-color)";
+                    expiredCount++;
+                } else if (diff <= 2) {
+                    div.classList.add('expiring');
+                    hasAlarm = true;
+                    statusColor = "var(--warning-color)";
+                    statusText = diff === 0 ? "오늘까지" : `${diff}일 남음`;
+                    alarmText = `🚨 임박`;
+                    expiringCount++;
+                }
+
+                const emoji = getEmoji(item.name);
+
+                div.innerHTML = `
+                    <div class="alarm-placeholder" style="height:12px; margin-bottom:1px;">
+                        ${hasAlarm ? `<span class="alarm-tag" style="background-color: ${statusColor}">${alarmText}</span>` : ''}
+                    </div>
+                    <div class="emoji-box" style="background-color: ${diff < 0 ? '#ffeaec' : (diff <= 2 ? '#fff4e6' : '#f1f2f6')}">${emoji}</div>
+                    <div class="food-item-name" title="${item.name}">${item.name}</div>
+                    <div class="d-day-label">${diff >= 0 ? 'D-' + diff : '만료'}</div>
+                `;
+
+                const alarmTag = div.querySelector('.alarm-tag');
+                if (alarmTag) {
+                    alarmTag.onclick = (e) => {
+                        e.stopPropagation();
+                        getAIRecommendation({
+                            name: item.name,
+                            emoji: emoji,
+                            diff: diff,
+                            statusText: statusText,
+                            expiryDate: item.expiry
+                        });
+                    };
+                }
+
+                div.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`'${item.name}'을(를) 사용 완료하셨나요?`)) {
+                        foodItems = foodItems.filter(f => f.id !== item.id);
+                        renderItems();
+                    }
+                });
+
+                const slot = document.querySelector(`[data-location="${item.location}"] .item-slot`);
+                if (slot) slot.appendChild(div);
+            });
+
+            // 글로벌 알람 배너 업데이트
+            const totalIssueCount = expiredCount + expiringCount;
+            if (totalIssueCount > 0) {
+                globalAlarmBanner.style.display = 'block';
+                if (expiredCount > 0) {
+                    globalAlarmBanner.className = 'global-alert-banner alert-urgent';
+                    globalAlarmBanner.innerText = `🚨 경고: 소비기한이 지난 재료 ${expiredCount}건 포함, 총 ${totalIssueCount}건의 알람이 있습니다! (클릭)`;
+                } else {
+                    globalAlarmBanner.className = 'global-alert-banner alert-warning';
+                    globalAlarmBanner.innerText = `⚠️ 알림: 소비기한이 임박한 재료가 ${expiringCount}건 있습니다. (클릭)`;
+                }
+            } else {
+                globalAlarmBanner.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>
