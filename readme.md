@@ -2,7 +2,7 @@
 AI를 활용한 냉장고내 식자재 소비기한 알림 앱
 
 ## 🔗 프로젝트 링크
-배포 URL: [여기에 링크 입력] (예: Vercel, Netlify, GitHub Pages 등). 
+배포 URL: [https://nkey-9.github.io/Homepage/] (GitHub Pages). 
 
 
 ## 1️⃣ 아이디어 및 목적 (Why & What)
